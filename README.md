@@ -1,4 +1,4 @@
-# Money Transfering API Backend
+# Money Transferring API Backend
 
 This api is written in python using the Flask Package and MongoDB.
 

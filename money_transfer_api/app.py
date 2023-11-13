@@ -1,5 +1,6 @@
 from flask import Flask, request, make_response, jsonify, render_template
-from database_methods import add_user, user_exists, delete_user, update_users_password, update_user_balance, add_transfer
+from database_methods import add_user, user_exists, delete_user, update_users_password
+from database_methods import update_user_balance, add_transfer, unique_email_check
 import datetime
 import uuid
 
@@ -15,6 +16,11 @@ def hello_world():
 
 @app.route("/api/v1.0/user/new", methods=["POST"])
 def add_new_login():
+
+    is_unique = unique_email_check(request.form["email"])
+    if not is_unique:
+        return make_response(jsonify({"error": "Email already registered"}), 400)
+
     try:
         next_id = str(uuid.uuid1())
         next_user = {
@@ -75,8 +81,8 @@ def update_user_account_password():
 def new_transfer():
 
     success = update_user_balance(
-        sending_id=request.form["sending_id"],
-        receiving_id=request.form["receiving_id"],
+        sending_email=request.form["sending_email"],
+        receiving_email=request.form["receiving_email"],
         transfer_amount=int(request.form["transfer_amount"])
     )
 
@@ -84,16 +90,14 @@ def new_transfer():
         next_id = str(uuid.uuid1())
         transfer_data = {
             "id": next_id,
-            "sender_id": request.form["sending_id"],
-            "receiver_id": request.form["receiving_id"],
+            "sender_email": request.form["sending_email"],
+            "receiver_email": request.form["receiving_email"],
             "amount_sent": int(request.form["transfer_amount"]),
             "transaction_date": datetime.datetime.now()
         }
 
         add_transfer(transfer_data)
-
         transfer_data.pop("_id", None)
-
         return make_response(jsonify(transfer_data), 201)
 
     else:

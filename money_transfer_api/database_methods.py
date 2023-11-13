@@ -53,7 +53,24 @@ def user_exists(email, password):
     return user
 
 
-def add_user(new_user: dict):
+def unique_email_check(email: str):
+    client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
+    db = client[DATABASE_CONNECTION]
+    collection = db[USERS_COLLECTION]
+
+    # Check if the email already exists
+    existing_user = collection.find_one({"email": email})
+
+    if existing_user:
+        print("Email already exists. Cannot add new user.")
+        client.close()
+        return False
+    else:
+        return True
+
+
+# Code to add a new user, added additional logic whereby users emails must be unique
+def add_user(new_user: dict) -> bool:
 
     client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
     db = client[DATABASE_CONNECTION]
@@ -61,10 +78,12 @@ def add_user(new_user: dict):
 
     try:
         collection.insert_one(new_user)
+        client.close()
+        return True
     except PyMongoError as e:
         print(f"Cannot add new user: {e}")
-
-    client.close()
+        client.close()
+        return False
 
 
 def read_user(user_account_id: str) -> dict:
@@ -128,12 +147,12 @@ def update_users_password(user_email: str, old_password: str, new_password: str)
 """
 
 
-def get_user_balance(account_id) -> int:
+def get_user_balance(email: str) -> int:
     client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
     db = client[DATABASE_CONNECTION]
     collection = db[USERS_COLLECTION]
 
-    document = collection.find_one({'user_id': account_id}, {'balance': 1, '_id': 0})
+    document = collection.find_one({'email': email}, {'balance': 1, '_id': 0})
 
     if document:
         balance = document.get('balance')
@@ -142,32 +161,36 @@ def get_user_balance(account_id) -> int:
             sender_account_balance = int(balance)
             return sender_account_balance
         else:
-            print(f"No balance property found for user {account_id}")
+            print(f"No balance property found for user {email}")
             return -1
     else:
-        print(f"No document found for user {account_id}")
+        print(f"No document found for user {email}")
         return -1
 
 
-def update_user_balance(sending_id: str, receiving_id: str, transfer_amount: int) -> bool:
+def update_user_balance(sending_email: str, receiving_email: str, transfer_amount: int) -> bool:
+
+    if sending_email == receiving_email:
+        return False
+
     client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
     db = client[DATABASE_CONNECTION]
     collection = db[USERS_COLLECTION]
 
-    sender_account_balance = get_user_balance(sending_id)
-    receiver_account_balance = get_user_balance(receiving_id)
+    sender_account_balance = get_user_balance(sending_email)
+    receiver_account_balance = get_user_balance(receiving_email)
 
     try:
 
         if sender_account_balance > transfer_amount and receiver_account_balance != -1:
 
             collection.update_one(
-                {"user_id": sending_id},
+                {"email": sending_email},
                 {"$set": {"balance": sender_account_balance - transfer_amount}}
             )
 
             collection.update_one(
-                {"user_id": receiving_id},
+                {"email": receiving_email},
                 {"$set": {"balance": receiver_account_balance + transfer_amount}}
             )
 

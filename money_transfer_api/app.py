@@ -10,7 +10,7 @@ import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 from functools import wraps
 from constants import SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION, USERS_COLLECTION
-
+import bcrypt
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
@@ -55,29 +55,27 @@ def login():
 
     auth = request.authorization
 
-    # Check if the request contains the 'Authorization' header
-    if not auth or not auth.username or not auth.password:
-        return make_response('Could not verify', 401, {
-            'WWW-Authenticate': 'Basic realm="Login Required"'
-        })
+    if auth:
+        user = users_collection.find_one({'email': auth.username})
+        # Checks for a valid user, if so continue
+        if user is not None:
 
-    # Query the MongoDB collection for the provided email
-    user = users_collection.find_one({'email': auth.username, 'password': auth.password})
+            # Checks for a valid password, and if so returns token
+            if bcrypt.checkpw(bytes(auth.password, 'UTF-8'), user['password']):
+                # Token is created that contains the username and expiry time
+                token = jwt.encode({
+                    'user': auth.username,
+                    'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
+                }, app.config['SECRET_KEY'])
+                return make_response(jsonify({'token': token}), 200)
+            # Otherwise returns an error
+            else:
+                return make_response(jsonify({'message': 'Bad password'}), 401)
 
-    # Check if the user was found and the password matches
-    if user:
-        # Token is created that contains the username and expiry time
-        token = jwt.encode({
-            'user': auth.username,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
-        }, app.config['SECRET_KEY'])
+        else:
+            return make_response(jsonify({'message': 'Bad username'}), 401)
 
-        # Returning the JSON obj decoded
-        return jsonify({'token': token})
-    else:
-        return make_response('Invalid credentials', 401, {
-            'WWW-Authenticate': 'Basic realm="Login Required"'
-        })
+    return make_response(jsonify({'message': 'Authentication credentials were not provided'}), 401)
 
 
 @app.route("/api/v1.0/user/new", methods=["POST"])
@@ -89,10 +87,11 @@ def add_new_login():
 
     try:
         next_id = str(uuid.uuid1())
+        hashed_password = bcrypt.hashpw(request.form["password"].encode('utf-8'), bcrypt.gensalt())
         next_user = {
             "user_id": next_id,
             "email": request.form["email"],
-            "password": request.form["password"],
+            "password": hashed_password,
             "location": request.form["location"],
             "balance": 0,
             "registration_date": datetime.datetime.now()
@@ -101,8 +100,9 @@ def add_new_login():
         # Insert the new_login data into the database
         add_user(next_user)
 
-        # Remove the _id field before returning the JSON response
+        # Remove the _id and password fields before returning the JSON response
         next_user.pop("_id", None)
+        next_user.pop("password", None)
 
         return make_response(jsonify(next_user), 201)
     except KeyError as e:

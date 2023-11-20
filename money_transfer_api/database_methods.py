@@ -27,9 +27,9 @@ example_transfer = {
 
     "transfer_id": str(uuid),
 
-    "sender_id": "xxxx10xsshf381",
+    "sender_iemail": "cian@gmail.com",
 
-    "receiver_id": "43hhg3rbfh53",
+    "receiver_email": "viv@gmail.com",
 
     "amount_sent": 500,
 
@@ -100,6 +100,7 @@ def read_user(user_account_id: str) -> dict:
     client.close()
 
 
+# NEEDS EDITED TO WORK WITH HASHED PASSWORDS
 def delete_user(user_email: str, user_password: str) -> bool:
     client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
     db = client[DATABASE_CONNECTION]
@@ -122,6 +123,7 @@ def delete_user(user_email: str, user_password: str) -> bool:
         client.close()
 
 
+# NEEDS EDITED TO WORK WITH HASHED PASSWORDS
 def update_users_password(user_email: str, old_password: str, new_password: str):
     client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
     db = client[DATABASE_CONNECTION]

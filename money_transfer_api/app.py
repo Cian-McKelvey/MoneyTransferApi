@@ -7,13 +7,18 @@ from database_methods import update_user_balance, add_transfer, unique_email_che
 import datetime
 import uuid
 import jwt
-from jwt import ExpiredSignatureError, InvalidTokenError
 from functools import wraps
-from constants import SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION, USERS_COLLECTION
+from constants import SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION, USERS_COLLECTION, BLACKLIST_COLLECTION
 import bcrypt
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
+
+client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
+db = client[DATABASE_CONNECTION]
+users_collection = db[USERS_COLLECTION]
+blacklist_collection = db[BLACKLIST_COLLECTION]
 
 
 # Decorator function used to protect routes
@@ -21,25 +26,30 @@ app.config['SECRET_KEY'] = SECRET_KEY
 def jwt_required(func):
     @wraps(func)
     def jwt_required_wrapper(*args, **kwargs):
-        token = request.args.get('token')
+        token = None
+        if 'x-access-token' in request.headers:
+            token = request.headers['x-access-token']
         if not token:
             return jsonify({'message': 'Token is missing'}, 401)
 
         try:
-            data = jwt.decode(token, app.config['SECRET_KEY'])
-        except ExpiredSignatureError:
-            return jsonify({'message': 'Token has expired'}, 401)
-        except InvalidTokenError:
-            return jsonify({'message': 'Invalid token'}, 401)
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         except Exception as e:
             return jsonify({'message': f'Error decoding token: {str(e)}'}, 401)
+
+        blacklist_token = blacklist_collection.find_one({"token": token})
+        if blacklist_token is not None:
+            return make_response({"message": "Token is blacklisted, can no longer be used"}, 401)
+
         return func(*args, **kwargs)
-    return jwt_required_wrapper()
+
+    return jwt_required_wrapper
 
 
 # Home route of app
 @app.route('/')
 def hello_world():
+    # Can add a html template here that can show routes or something else
     return "<h1>Hello World!<h1>"
 
 
@@ -49,10 +59,6 @@ def hello_world():
 # NOTE: auth.username is actually the email, just how it has to be done
 @app.route('/api/v1.0/login', methods=['POST'])
 def login():
-    client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
-    db = client[DATABASE_CONNECTION]
-    users_collection = db[USERS_COLLECTION]
-
     auth = request.authorization
 
     if auth:
@@ -75,12 +81,20 @@ def login():
         else:
             return make_response(jsonify({'message': 'Bad username'}), 401)
 
+    # this isn't working, it will only return bad username if nothing is sent
     return make_response(jsonify({'message': 'Authentication credentials were not provided'}), 401)
+
+
+@app.route("/api/v1.0/logout", methods=["POST"])
+@jwt_required
+def logout():
+    token = request.headers['x-access-token']
+    blacklist_collection.insert_one({"token": token})
+    return make_response(jsonify({"message": "logout successful"}), 200)
 
 
 @app.route("/api/v1.0/user/new", methods=["POST"])
 def add_new_login():
-
     is_unique = unique_email_check(request.form["email"])
     if not is_unique:
         return make_response(jsonify({"error": "Email already registered"}), 400)

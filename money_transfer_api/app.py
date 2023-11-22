@@ -1,9 +1,10 @@
 from flask import Flask, request, make_response, jsonify, render_template
+from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
-from database_methods import add_user, user_exists, delete_user, update_users_password
-from database_methods import update_user_balance, add_transfer, unique_email_check
+from database_methods import add_user, user_exists, delete_user, update_users_password, receive_transfer_by_email
+from database_methods import update_user_balance, add_transfer, unique_email_check, retrieve_all_transfers
 import datetime
 import uuid
 import jwt
@@ -14,6 +15,16 @@ import bcrypt
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
+
+# This config might get in the way at a later point, if the code does not work for any reason come back and check
+cors_config = {
+    "origins": ["http://localhost:4200"],  # Adjust the port as needed
+    "methods": ["GET", "POST", "PUT", "DELETE"],
+    "allow_headers": ["Content-Type", "Authorization"],
+    "supports_credentials": True,
+}
+# CORS(app, **cors_config)
+CORS(app)
 
 client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
 db = client[DATABASE_CONNECTION]
@@ -182,6 +193,18 @@ def new_transfer():
 
     else:
         return make_response(jsonify({"error": f"Invalid Details Provided"}), 400)
+
+
+@app.route("/api/v1.0/transfers", methods=["POST"])
+def transfers_by_email():
+    try:
+        data = receive_transfer_by_email(request.json["email"])
+        if data is not None:
+            return make_response(jsonify(data), 200)
+        else:
+            return make_response(jsonify({'message': 'data could not be fetched successfully'}), 400)
+    except KeyError:
+        return make_response(jsonify({'message': 'email key not found in the request'}), 400)
 
 
 if __name__ == '__main__':

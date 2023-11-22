@@ -218,3 +218,31 @@ def add_transfer(new_transfer: dict) -> None:
         print(f"Cannot add new transfer: {e}")
 
     client.close()
+
+
+def receive_transfer_by_email(email: str):
+    client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
+    db = client[DATABASE_CONNECTION]
+    collection = db[TRANSFERS_COLLECTION]
+
+    combined_query = {
+        "$or": [
+            {"sender_email": email},
+            {"receiver_email": email}
+        ]
+    }
+
+    result = list(collection.find(combined_query, {"_id": 0}))
+
+    return result
+
+
+def retrieve_all_transfers():
+    client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
+    db = client[DATABASE_CONNECTION]
+    collection = db[TRANSFERS_COLLECTION]
+
+    # Retrieve all items in the collection and convert to a list
+    all_documents = list(collection.find({}, {'_id': 0}))
+    # Return the list of documents
+    return all_documents

@@ -27,7 +27,7 @@ example_transfer = {
 
     "transfer_id": str(uuid),
 
-    "sender_iemail": "cian@gmail.com",
+    "sender_email": "cian@gmail.com",
 
     "receiver_email": "viv@gmail.com",
 

@@ -1,14 +1,11 @@
-from random import randint, choice, random
-from database_methods import add_user
+from random import randint, choice
 from faker import Faker
 import uuid
 import datetime
 from datetime import datetime, timedelta
-import requests
-from constants import *
+from constants import CLIENT_CONNECTION, USERS_COLLECTION, DATABASE_CONNECTION, TRANSFERS_COLLECTION
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from pymongo.errors import PyMongoError
 import bcrypt
 import pprint
 

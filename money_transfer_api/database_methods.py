@@ -233,6 +233,7 @@ def receive_transfer_by_email(email: str):
     }
 
     result = list(collection.find(combined_query, {"_id": 0}))
+    result.reverse()
 
     return result
 

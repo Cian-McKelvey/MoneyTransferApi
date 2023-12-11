@@ -3,7 +3,8 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
-from database_methods import add_user, user_exists, delete_user, update_users_password, receive_transfer_by_email
+from database_methods import add_user, user_exists, delete_user, update_users_password, receive_transfer_by_email, \
+    get_user_balance
 from database_methods import update_user_balance, add_transfer, unique_email_check, retrieve_all_transfers
 import datetime
 import uuid
@@ -64,10 +65,11 @@ def hello_world():
     return "<h1>Hello World!<h1>"
 
 
-# Login method from lectures, edited to fit my needs
-# Takes a POST request in the following format,
-# If username and password is correct, a token is provided
-# NOTE: auth.username is actually the email, just how it has to be done
+"""
+    Endpoints here are used to manage user accounts
+"""
+
+
 @app.route('/api/v1.0/login', methods=['POST'])
 def login():
     auth = request.authorization
@@ -166,6 +168,21 @@ def update_user_account_password():
         return make_response(jsonify({"message": "User password updated."}), 201)
     else:
         return make_response(jsonify({"message": "Could not update user password."}), 400)
+
+
+@app.route("/api/v1.0/user/balance", methods=["POST"])
+def get_balance():
+    account_email = request.json["email"]
+    balance = get_user_balance(account_email)
+    if balance is not None:
+        return make_response(jsonify({"balance": balance}), 200)
+    else:
+        return make_response(jsonify({"message": "Could not fetch user balance"}), 400)
+
+
+"""
+    Below here are the endpoints for transfers
+"""
 
 
 @app.route("/api/v1.0/transfers/new", methods=["POST"])

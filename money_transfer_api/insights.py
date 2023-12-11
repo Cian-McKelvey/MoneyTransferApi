@@ -33,7 +33,7 @@ def most_common_town() -> str:
 
 
 # Fetches the town with the highest average balance
-def highest_average_balance_town():
+def highest_average_balance_town() -> str:
     client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
     db = client[DATABASE_CONNECTION]
     collection = db[USERS_COLLECTION]
@@ -65,7 +65,7 @@ def highest_average_balance_town():
     1. Find all the transactions and add each sender to a list
     2. Find the town each sender is from
     3. Find the town that is mentioned most often
-    4. Kind optional, but find the total amount transfered by that town
+    4. Kind optional, but find the total amount transferred by that town
 """
 
 
@@ -81,21 +81,11 @@ def highest_transaction_town():
     sender_list = list([document["sender_email"] for document in cursor])
 
 
-
-
-
-
-
-
-
-
 # Methods below here are helper methods
+
 
 def most_common_element(lst):
     counter = Counter(lst)
     most_common_tuples = counter.most_common()
     common_element, _ = most_common_tuples[0]
     return common_element
-
-
-print(highest_average_balance_town())

@@ -6,11 +6,13 @@ from pymongo.server_api import ServerApi
 from database_methods import add_user, user_exists, delete_user, update_users_password, receive_transfer_by_email, \
     get_user_balance
 from database_methods import update_user_balance, add_transfer, unique_email_check, retrieve_all_transfers
+from insights import incoming_vs_outgoing
+from constants import SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION, USERS_COLLECTION, BLACKLIST_COLLECTION
+
 import datetime
 import uuid
 import jwt
 from functools import wraps
-from constants import SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION, USERS_COLLECTION, BLACKLIST_COLLECTION
 import bcrypt
 
 
@@ -136,16 +138,16 @@ def add_new_login():
         return make_response(jsonify({"error": f"Invalid Details Provided: {str(e)}"}), 400)
 
 
-@app.route("/api/v1.0/user/check", methods=["POST"])
-def check_login():
-    checked_user = user_exists(email=request.form["email"], password=request.form['password'])
-
-    if checked_user is not None:
-        # Remove the _id field before returning the JSON response
-        checked_user.pop("_id", None)
-        return make_response(jsonify(checked_user), 201)
-    else:
-        return make_response(jsonify({"login": "failure - account not found"}), 404)
+# @app.route("/api/v1.0/user/check", methods=["POST"])
+# def check_login():
+#     checked_user = user_exists(email=request.form["email"], password=request.form['password'])
+#
+#     if checked_user is not None:
+#         # Remove the _id field before returning the JSON response
+#         checked_user.pop("_id", None)
+#         return make_response(jsonify(checked_user), 201)
+#     else:
+#         return make_response(jsonify({"login": "failure - account not found"}), 404)
 
 
 @app.route("/api/v1.0/user/delete", methods=["DELETE"])
@@ -222,6 +224,18 @@ def transfers_by_email():
             return make_response(jsonify({'message': 'data could not be fetched successfully'}), 400)
     except KeyError:
         return make_response(jsonify({'message': 'email key not found in the request'}), 400)
+
+
+@app.route("/api/v1.0/insights", methods=["POST"])
+def get_insights():
+    try:
+        transfer_net = incoming_vs_outgoing(request.json["email"])
+        insight_dict = {
+            "net_total": transfer_net
+        }
+        return make_response(jsonify(insight_dict), 201)
+    except:
+        return make_response(jsonify({'message': 'Cannot find insights for that account'}), 404)
 
 
 if __name__ == '__main__':

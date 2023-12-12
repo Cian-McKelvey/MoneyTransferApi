@@ -13,8 +13,27 @@ from collections import Counter
     1. Find the most common town amongst users
     2. Find the town with the highest average balance
     3. Town with the most transactions amongst users
+    4. Find the net sent/received transfer amount
     
 """
+
+
+def incoming_vs_outgoing(email: str) -> int:
+    client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
+    db = client[DATABASE_CONNECTION]
+    transfer_collection = db[TRANSFERS_COLLECTION]
+
+    incoming_amount = 0
+    for doc in transfer_collection.find({"receiver_email": email}, {"_id": 0, "amount_sent": 1}):
+        incoming_amount += doc['amount_sent']
+
+    outgoing_amount = 0
+    for doc in transfer_collection.find({"sender_email": email}, {"_id": 0, "amount_sent": 1}):
+        outgoing_amount += doc['amount_sent']
+
+    total_amount = incoming_amount - outgoing_amount
+
+    return total_amount
 
 
 # Fetches the town with the most users
@@ -57,6 +76,7 @@ def highest_average_balance_town() -> str:
     average_balances = {location: data["total_balance"] / data["user_count"] for location, data
                         in balance_location_dict.items()}
 
+    client.close()
     return max(average_balances, key=average_balances.get)
 
 
@@ -89,3 +109,4 @@ def most_common_element(lst):
     most_common_tuples = counter.most_common()
     common_element, _ = most_common_tuples[0]
     return common_element
+

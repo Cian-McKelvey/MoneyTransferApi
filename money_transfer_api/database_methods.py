@@ -124,7 +124,7 @@ def delete_user(user_email: str, user_password: str) -> bool:
 
 
 # NEEDS EDITED TO WORK WITH HASHED PASSWORDS
-def update_users_password(user_email: str, old_password: str, new_password: str):
+def update_users_password(user_email: str, old_password, new_password):
     client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
     db = client[DATABASE_CONNECTION]
     collection = db[USERS_COLLECTION]

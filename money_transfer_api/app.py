@@ -162,9 +162,11 @@ def delete_user_account():
 
 @app.route("/api/v1.0/user/update-password", methods=["PUT"])
 def update_user_account_password():
+    old_hashed_password = bcrypt.hashpw(request.form["old_password"].encode('utf-8'), bcrypt.gensalt())
+    new_hashed_password = bcrypt.hashpw(request.form["new_password"].encode('utf-8'), bcrypt.gensalt())
     update_result = update_users_password(user_email=request.form["email"],
-                                          old_password=request.form['old_password'],
-                                          new_password=request.form['new_password'])
+                                          old_password=old_hashed_password,
+                                          new_password=new_hashed_password)
 
     if update_result.matched_count > 0 and update_result.modified_count > 0:
         return make_response(jsonify({"message": "User password updated."}), 201)

@@ -3,10 +3,10 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
-from database_methods import add_user, user_exists, delete_user, update_users_password, receive_transfer_by_email, \
-    get_user_balance
-from database_methods import update_user_balance, add_transfer, unique_email_check, retrieve_all_transfers
-from insights import incoming_vs_outgoing
+from database_methods import add_user, delete_user, update_users_password, receive_transfer_by_email, get_user_balance
+from database_methods import update_user_balance, add_transfer, unique_email_check
+from insights import incoming_vs_outgoing, highest_average_balance_town, highest_transaction_town, \
+    highest_user_count
 from constants import SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION, USERS_COLLECTION, BLACKLIST_COLLECTION
 
 import datetime
@@ -232,12 +232,24 @@ def transfers_by_email():
 def get_insights():
     try:
         transfer_net = incoming_vs_outgoing(request.json["email"])
+        most_users = highest_user_count()
+        highest_average_balance = highest_average_balance_town()
+        most_transactions = highest_transaction_town()
+
         insight_dict = {
-            "net_total": transfer_net
+            "net_total": transfer_net,
+            "most_users": most_users,
+            "highest_average_balance": highest_average_balance,
+            "most_transactions": most_transactions
         }
+
         return make_response(jsonify(insight_dict), 201)
-    except:
-        return make_response(jsonify({'message': 'Cannot find insights for that account'}), 404)
+
+    except KeyError as e:
+        return make_response(jsonify({'message': 'Invalid request data. Please provide an "email" field.'}), 400)
+
+    except Exception as e:
+        return make_response(jsonify({'message': 'An unexpected error occurred.'}), 500)
 
 
 if __name__ == '__main__':

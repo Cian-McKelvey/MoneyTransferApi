@@ -184,14 +184,13 @@ def get_balance():
 
 @app.route("/api/v1.0/user/balance/add", methods=["POST"])
 def add_user_balance():
-    print()
     email = request.json["email"]
     amount = request.json["amount"]
 
-    try:
-        add_balance(email, amount)
+    success = add_balance(email, amount)
+    if success:
         return make_response(jsonify({"message": "User funds added."}), 201)
-    except Exception as e:
+    else:
         return make_response(jsonify({"message": "Could not add funds"}), 401)
 
 

@@ -175,15 +175,17 @@ def add_balance(email: str, amount: int) -> bool:
     db = client[DATABASE_CONNECTION]
     collection = db[USERS_COLLECTION]
 
-    account_balance = get_user_balance(email)
+    valid_user = collection.find_one({'email': email})
 
-    try:
+    if valid_user:
+
+        account_balance = get_user_balance(email)
         collection.update_one(
                 {"email": email},
                 {"$set": {"balance": account_balance + amount}}
         )
-    except PyMongoError as e:
-        print(f"Exception occured, money cannot be added: {e}")
+        return True
+    else:
         return False
 
 

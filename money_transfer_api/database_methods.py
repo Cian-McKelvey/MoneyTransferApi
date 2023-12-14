@@ -170,6 +170,23 @@ def get_user_balance(email: str) -> int:
         return -1
 
 
+def add_balance(email: str, amount: int) -> bool:
+    client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
+    db = client[DATABASE_CONNECTION]
+    collection = db[USERS_COLLECTION]
+
+    account_balance = get_user_balance(email)
+
+    try:
+        collection.update_one(
+                {"email": email},
+                {"$set": {"balance": account_balance + amount}}
+        )
+    except PyMongoError as e:
+        print(f"Exception occured, money cannot be added: {e}")
+        return False
+
+
 def update_user_balance(sending_email: str, receiving_email: str, transfer_amount: int) -> bool:
 
     if sending_email == receiving_email:

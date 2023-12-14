@@ -3,7 +3,8 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
-from database_methods import add_user, delete_user, update_users_password, receive_transfer_by_email, get_user_balance
+from database_methods import add_user, delete_user, update_users_password, receive_transfer_by_email, get_user_balance, \
+    add_balance
 from database_methods import update_user_balance, add_transfer, unique_email_check
 from insights import incoming_vs_outgoing, highest_average_balance_town, highest_transaction_town, \
     highest_user_count
@@ -138,18 +139,6 @@ def add_new_login():
         return make_response(jsonify({"error": f"Invalid Details Provided: {str(e)}"}), 400)
 
 
-# @app.route("/api/v1.0/user/check", methods=["POST"])
-# def check_login():
-#     checked_user = user_exists(email=request.form["email"], password=request.form['password'])
-#
-#     if checked_user is not None:
-#         # Remove the _id field before returning the JSON response
-#         checked_user.pop("_id", None)
-#         return make_response(jsonify(checked_user), 201)
-#     else:
-#         return make_response(jsonify({"login": "failure - account not found"}), 404)
-
-
 @app.route("/api/v1.0/user/delete", methods=["DELETE"])
 def delete_user_account():
     delete_result = delete_user(user_email=request.form["email"], user_password=request.form['password'])
@@ -160,13 +149,22 @@ def delete_user_account():
         return make_response(jsonify({"message": "User account not found or password incorrect."}), 404)
 
 
+"""
+    if auth:
+        user = users_collection.find_one({'email': auth.username})
+        # Checks for a valid user, if so continue
+        if user is not None:
+
+            # Checks for a valid password, and if so returns token
+            if bcrypt.checkpw(bytes(auth.password, 'UTF-8'), user['password']):
+"""
+
+
 @app.route("/api/v1.0/user/update-password", methods=["PUT"])
 def update_user_account_password():
-    old_hashed_password = bcrypt.hashpw(request.form["old_password"].encode('utf-8'), bcrypt.gensalt())
-    new_hashed_password = bcrypt.hashpw(request.form["new_password"].encode('utf-8'), bcrypt.gensalt())
     update_result = update_users_password(user_email=request.form["email"],
-                                          old_password=old_hashed_password,
-                                          new_password=new_hashed_password)
+                                          old_password=request.form["old_password"],
+                                          new_password=request.form["new_password"])
 
     if update_result.matched_count > 0 and update_result.modified_count > 0:
         return make_response(jsonify({"message": "User password updated."}), 201)
@@ -182,6 +180,19 @@ def get_balance():
         return make_response(jsonify({"balance": balance}), 200)
     else:
         return make_response(jsonify({"message": "Could not fetch user balance"}), 400)
+
+
+@app.route("/api/v1.0/user/balance/add", methods=["POST"])
+def add_user_balance():
+    print()
+    email = request.json["email"]
+    amount = request.json["amount"]
+
+    try:
+        add_balance(email, amount)
+        return make_response(jsonify({"message": "User funds added."}), 201)
+    except Exception as e:
+        return make_response(jsonify({"message": "Could not add funds"}), 401)
 
 
 """
@@ -229,6 +240,7 @@ def transfers_by_email():
 
 
 @app.route("/api/v1.0/insights", methods=["POST"])
+@jwt_required
 def get_insights():
     try:
         transfer_net = incoming_vs_outgoing(request.json["email"])

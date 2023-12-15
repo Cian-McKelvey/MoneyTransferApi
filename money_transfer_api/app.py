@@ -84,7 +84,7 @@ def login():
         if user is not None:
 
             # Checks for a valid password, and if so returns token
-            if bcrypt.checkpw(bytes(auth.password, 'UTF-8'), user['password']):
+            if bcrypt.checkpw(auth.password.encode('utf-8'), user['password']):
                 # Token is created that contains the username and expiry time
                 token = jwt.encode({
                     'user': auth.username,
@@ -161,16 +161,22 @@ def delete_user_account(id):
 """
 
 
-@app.route("/api/v1.0/user/update-password", methods=["PUT"])
-def update_user_account_password():
-    update_result = update_users_password(user_email=request.form["email"],
-                                          old_password=request.form["old_password"],
-                                          new_password=request.form["new_password"])
-
-    if update_result.matched_count > 0 and update_result.modified_count > 0:
-        return make_response(jsonify({"message": "User password updated."}), 201)
-    else:
-        return make_response(jsonify({"message": "Could not update user password."}), 400)
+# @app.route("/api/v1.0/user/update-password", methods=["PUT"])
+# def update_user_account_password():
+#     user = users_collection.find_one({'email': request.form["email"]})
+#     # Checks for a valid user, if so continue
+#     if user is not None:
+#         hashed_password = bcrypt.hashpw(request.form["password"].encode('utf-8'), bcrypt.gensalt())
+#         update_result = update_users_password(user_collection=users_collection,
+#                                               user_email=request.form["email"],
+#                                               new_password=hashed_password)
+#
+#         if update_result:
+#             return make_response(jsonify({"message": "User password updated."}), 201)
+#         else:
+#             return make_response(jsonify({"message": "Could not update user password."}), 400)
+#     else:
+#         return make_response(jsonify({"message": "Invalid email"}), 404)
 
 
 @app.route("/api/v1.0/user/balance", methods=["POST"])

@@ -107,23 +107,19 @@ def delete_user(users_collection: Collection, user_id: str) -> bool:
         return False
 
 
-# NEEDS EDITED TO WORK WITH HASHED PASSWORDS
-def update_users_password(user_email: str, old_password, new_password):
-    client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
-    db = client[DATABASE_CONNECTION]
-    collection = db[USERS_COLLECTION]
+# def update_users_password(user_collection: Collection, user_email: str, new_password: str):
+#     try:
+#         user_collection.update_one(
+#             {"email": user_email},
+#             {"$set": {"password": new_password}}
+#         )
+#         print("Password updated!")
+#         return True
+#
+#     except PyMongoError as e:
+#         print(f"An error occurred: {e}")
+#         return False
 
-    try:
-        result = collection.update_one(
-            {"email": user_email, "password": old_password},
-            {"$set": {"password": new_password}}
-        )
-
-        print("Password updated!")
-        return result
-
-    except PyMongoError as e:
-        print(f"An error occurred: {e}")
 
 
 """

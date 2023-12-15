@@ -8,7 +8,8 @@ from database_methods import add_user, delete_user, update_users_password, recei
 from database_methods import update_user_balance, add_transfer, unique_email_check
 from insights import incoming_vs_outgoing, highest_average_balance_town, highest_transaction_town, \
     highest_user_count
-from constants import SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION, USERS_COLLECTION, BLACKLIST_COLLECTION
+from constants import (SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION,
+                       USERS_COLLECTION, BLACKLIST_COLLECTION, TRANSFERS_COLLECTION)
 
 import datetime
 import uuid
@@ -20,7 +21,7 @@ import bcrypt
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 
-# This config might get in the way at a later point, if the code does not work for any reason come back and check
+# This config might help at a later point, if the code does not work for any reason come back and check
 cors_config = {
     "origins": ["http://localhost:4200"],  # Adjust the port as needed
     "methods": ["GET", "POST", "PUT", "DELETE"],
@@ -33,11 +34,11 @@ CORS(app)
 client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
 db = client[DATABASE_CONNECTION]
 users_collection = db[USERS_COLLECTION]
+transfers_collection = db[TRANSFERS_COLLECTION]
 blacklist_collection = db[BLACKLIST_COLLECTION]
 
 
-# Decorator function used to protect routes
-# Should probably add this to all the routes
+# Decorator function used to protect from unregistered calls by requiring a valid token
 def jwt_required(func):
     @wraps(func)
     def jwt_required_wrapper(*args, **kwargs):
@@ -89,7 +90,7 @@ def login():
                     'user': auth.username,
                     'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
                 }, app.config['SECRET_KEY'])
-                return make_response(jsonify({'token': token}), 200)
+                return make_response(jsonify({'token': token, "user_id": user['user_id']}), 200)
             # Otherwise returns an error
             else:
                 return make_response(jsonify({'message': 'Bad password'}), 401)
@@ -111,7 +112,7 @@ def logout():
 
 @app.route("/api/v1.0/user/new", methods=["POST"])
 def add_new_login():
-    is_unique = unique_email_check(request.form["email"])
+    is_unique = unique_email_check(users_collection, request.form["email"])
     if not is_unique:
         return make_response(jsonify({"error": "Email already registered"}), 400)
 
@@ -128,7 +129,7 @@ def add_new_login():
         }
 
         # Insert the new_login data into the database
-        add_user(next_user)
+        add_user(users_collection, next_user)
 
         # Remove the _id and password fields before returning the JSON response
         next_user.pop("_id", None)
@@ -139,12 +140,12 @@ def add_new_login():
         return make_response(jsonify({"error": f"Invalid Details Provided: {str(e)}"}), 400)
 
 
-@app.route("/api/v1.0/user/delete", methods=["DELETE"])
-def delete_user_account():
-    delete_result = delete_user(user_email=request.form["email"], user_password=request.form['password'])
+@app.route("/api/v1.0/user/delete/<string:id>", methods=["DELETE"])
+def delete_user_account(id):
+    delete_result = delete_user(users_collection, id)
 
     if delete_result:
-        return make_response(jsonify({"message": "User account deleted."}), 204)
+        return make_response(jsonify({}), 204)
     else:
         return make_response(jsonify({"message": "User account not found or password incorrect."}), 404)
 
@@ -175,19 +176,19 @@ def update_user_account_password():
 @app.route("/api/v1.0/user/balance", methods=["POST"])
 def get_balance():
     account_email = request.json["email"]
-    balance = get_user_balance(account_email)
+    balance = get_user_balance(users_collection, account_email)
     if balance is not None:
         return make_response(jsonify({"balance": balance}), 200)
     else:
         return make_response(jsonify({"message": "Could not fetch user balance"}), 400)
 
 
-@app.route("/api/v1.0/user/balance/add", methods=["POST"])
+@app.route("/api/v1.0/user/balance/add", methods=["PUT"])
 def add_user_balance():
-    email = request.json["email"]
-    amount = request.json["amount"]
+    email = request.form["email"]
+    amount = int(request.form["addAmount"])
 
-    success = add_balance(email, amount)
+    success = add_balance(users_collection, email=email, amount=amount)
     if success:
         return make_response(jsonify({"message": "User funds added."}), 201)
     else:
@@ -203,6 +204,7 @@ def add_user_balance():
 def new_transfer():
 
     success = update_user_balance(
+        user_collection=users_collection,
         sending_email=request.form["sending_email"],
         receiving_email=request.form["receiving_email"],
         transfer_amount=int(request.form["transfer_amount"])
@@ -218,7 +220,7 @@ def new_transfer():
             "transaction_date": datetime.datetime.now()
         }
 
-        add_transfer(transfer_data)
+        add_transfer(transfers_collection, transfer_data)
         transfer_data.pop("_id", None)
         return make_response(jsonify(transfer_data), 201)
 
@@ -229,7 +231,7 @@ def new_transfer():
 @app.route("/api/v1.0/transfers", methods=["POST"])
 def transfers_by_email():
     try:
-        data = receive_transfer_by_email(request.json["email"])
+        data = receive_transfer_by_email(transfers_collection, request.json["email"])
         if data is not None:
             return make_response(jsonify(data), 200)
         else:

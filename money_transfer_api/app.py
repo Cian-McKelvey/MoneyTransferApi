@@ -3,11 +3,12 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
-from database_methods import add_user, delete_user, update_users_password, receive_transfer_by_email, get_user_balance, \
-    add_balance
+from database_methods import add_user, delete_user, receive_transfer_by_email, get_user_balance, add_balance
 from database_methods import update_user_balance, add_transfer, unique_email_check
+
 from insights import incoming_vs_outgoing, highest_average_balance_town, highest_transaction_town, \
     highest_user_count
+
 from constants import (SECRET_KEY, CLIENT_CONNECTION, DATABASE_CONNECTION,
                        USERS_COLLECTION, BLACKLIST_COLLECTION, TRANSFERS_COLLECTION)
 
@@ -23,7 +24,7 @@ app.config['SECRET_KEY'] = SECRET_KEY
 
 # This config might help at a later point, if the code does not work for any reason come back and check
 cors_config = {
-    "origins": ["http://localhost:4200"],  # Adjust the port as needed
+    "origins": ["http://localhost:4200"],
     "methods": ["GET", "POST", "PUT", "DELETE"],
     "allow_headers": ["Content-Type", "Authorization"],
     "supports_credentials": True,
@@ -141,6 +142,7 @@ def add_new_login():
 
 
 @app.route("/api/v1.0/user/delete/<string:id>", methods=["DELETE"])
+@jwt_required
 def delete_user_account(id):
     delete_result = delete_user(users_collection, id)
 
@@ -180,6 +182,7 @@ def delete_user_account(id):
 
 
 @app.route("/api/v1.0/user/balance", methods=["POST"])
+@jwt_required
 def get_balance():
     account_email = request.json["email"]
     balance = get_user_balance(users_collection, account_email)
@@ -190,6 +193,7 @@ def get_balance():
 
 
 @app.route("/api/v1.0/user/balance/add", methods=["PUT"])
+@jwt_required
 def add_user_balance():
     email = request.form["email"]
     amount = int(request.form["addAmount"])
@@ -207,6 +211,7 @@ def add_user_balance():
 
 
 @app.route("/api/v1.0/transfers/new", methods=["POST"])
+@jwt_required
 def new_transfer():
 
     success = update_user_balance(
@@ -235,6 +240,7 @@ def new_transfer():
 
 
 @app.route("/api/v1.0/transfers", methods=["POST"])
+@jwt_required
 def transfers_by_email():
     try:
         data = receive_transfer_by_email(transfers_collection, request.json["email"])

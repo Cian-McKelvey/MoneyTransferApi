@@ -93,11 +93,17 @@ def highest_transaction_town(user_collection: Collection, transfer_collection: C
     return most_common_element(location_list)
 
 
-# Methods below here are helper methods
+"""
+    Methods below here are helper methods
+"""
 
 
+# Finds the most common element in a list
 def most_common_element(lst):
     counter = Counter(lst)
+    # Returns a list of tuples of items and their count
     most_common_tuples = counter.most_common()
+    # Takes the common element from first tuple because they're ordered desc, count is ignored
     common_element, _ = most_common_tuples[0]
     return common_element
+

@@ -1,45 +1,5 @@
-import uuid
-import datetime
-
-from pymongo.database import Database
 from pymongo.collection import Collection
-
-from constants import CLIENT_CONNECTION, USERS_COLLECTION, DATABASE_CONNECTION, TRANSFERS_COLLECTION
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
 from pymongo.errors import PyMongoError
-
-
-# Example dicts below are used while writing methods to remember what each collection contains
-example_user = {
-
-    "user_id": str(uuid),
-
-    "email": "cian@gmail.com",
-
-    "password": "ExamplePassword",
-
-    "location": "Belfast",
-
-    "balance": 0,
-
-    "creation_datetime": datetime.datetime
-
-}
-
-example_transfer = {
-
-    "transfer_id": str(uuid),
-
-    "sender_email": "cian@gmail.com",
-
-    "receiver_email": "viv@gmail.com",
-
-    "amount_sent": 500,
-
-    "transaction_date": datetime.datetime.now()
-
-}
 
 
 """
@@ -47,15 +7,12 @@ example_transfer = {
 """
 
 
-# User Database Methods
-# Below method isn't used, can probably be deleted
-def user_exists(db: Database, email: str, password: str):
-    collection = db[USERS_COLLECTION]
-
-    user = collection.find_one({"email": email, "password": password})
-    return user
+""" 
+    User Database Methods 
+"""
 
 
+# Returns true if the email hasn't been used already, false otherwise
 def unique_email_check(user_collection: Collection, email: str):
     # Check if the email already exists
     existing_user = user_collection.find_one({"email": email})
@@ -67,7 +24,7 @@ def unique_email_check(user_collection: Collection, email: str):
         return True
 
 
-# Code to add a new user, added additional logic whereby users emails must be unique
+# Add a new user, called from an endpoint whereby a complete User entry will be provided
 def add_user(user_collection: Collection, new_user: dict) -> bool:
     try:
         user_collection.insert_one(new_user)
@@ -77,21 +34,7 @@ def add_user(user_collection: Collection, new_user: dict) -> bool:
         return False
 
 
-# Not used either, delete if verified safe
-def read_user(user_account_id: str) -> dict:
-    client = MongoClient(CLIENT_CONNECTION, server_api=ServerApi('1'))
-    db = client[DATABASE_CONNECTION]
-    collection = db[USERS_COLLECTION]
-
-    try:
-        result = collection.find_one({'user_id': user_account_id})
-        return result
-    except PyMongoError as e:
-        print(f"An error occurred: {e}")
-
-    client.close()
-
-
+# Deletes a user by user_id
 def delete_user(users_collection: Collection, user_id: str) -> bool:
     try:
         result = users_collection.delete_one({'user_id': user_id})
@@ -107,32 +50,22 @@ def delete_user(users_collection: Collection, user_id: str) -> bool:
         return False
 
 
-# def update_users_password(user_collection: Collection, user_email: str, new_password: str):
-#     try:
-#         user_collection.update_one(
-#             {"email": user_email},
-#             {"$set": {"password": new_password}}
-#         )
-#         print("Password updated!")
-#         return True
-#
-#     except PyMongoError as e:
-#         print(f"An error occurred: {e}")
-#         return False
-
-
-
 """
     Methods related to transferring money, or updating a users balance
 """
 
 
+# Gets a users balance
 def get_user_balance(user_collection: Collection, email: str) -> int:
 
+    # Attempts to find a documents balance by email
     document = user_collection.find_one({'email': email}, {'balance': 1, '_id': 0})
 
+    # If there was a valid document
     if document:
+        # Try to fetch account balance
         balance = document.get('balance')
+        # If there was a valid balance fetched
         if balance is not None:
             # Convert the balance to an integer
             sender_account_balance = int(balance)
@@ -145,41 +78,47 @@ def get_user_balance(user_collection: Collection, email: str) -> int:
         return -1
 
 
+# Used to add balance to a user account, returns true or false on success/failure
 def add_balance(user_collection: Collection,
                 email: str,
                 amount: int) -> bool:
-
+    # checks for a valid account
     valid_user = user_collection.find_one({'email': email})
 
     if valid_user:
-
-        account_balance = get_user_balance(user_collection, email)
+        account_balance = get_user_balance(user_collection, email)  # Gets the current user balance
+        # Updates the balance to be the current balance plus the added amount
         user_collection.update_one(
                 {"email": email},
-                {"$set": {"balance": account_balance + amount}}
-        )
+                {"$set": {"balance": account_balance + amount}})
         return True
     else:
         return False
 
 
+# Method to updates an account balance
 def update_user_balance(user_collection: Collection,
                         sending_email: str,
                         receiving_email: str,
                         transfer_amount: int) -> bool:
 
+    # Checks so that you can't send to yourself
     if sending_email == receiving_email:
         return False
 
+    # Gets the balance of both accounts
     sender_account_balance = get_user_balance(user_collection, sending_email)
     receiver_account_balance = get_user_balance(user_collection, receiving_email)
 
     try:
+        # -1 is a default value, if nothing was found while fetching the balance of an account, -1 is returned
         if sender_account_balance > transfer_amount and receiver_account_balance != -1:
+            # Deducts from senders balance
             user_collection.update_one(
                 {"email": sending_email},
                 {"$set": {"balance": sender_account_balance - transfer_amount}}
             )
+            # Adds to receivers balance
             user_collection.update_one(
                 {"email": receiving_email},
                 {"$set": {"balance": receiver_account_balance + transfer_amount}}
@@ -195,6 +134,7 @@ def update_user_balance(user_collection: Collection,
         return False
 
 
+# Adds a transfer dict to the database
 def add_transfer(transfer_collection: Collection, new_transfer: dict) -> None:
     try:
         transfer_collection.insert_one(new_transfer)
@@ -202,7 +142,9 @@ def add_transfer(transfer_collection: Collection, new_transfer: dict) -> None:
         print(f"Cannot add new transfer: {e}")
 
 
+# Fetches all transfers associated with an email
 def receive_transfer_by_email(transfer_collection: Collection, email: str):
+    # Combined query fetches if the email = sender_email OR receiver_email
     combined_query = {
         "$or": [
             {"sender_email": email},
@@ -211,12 +153,6 @@ def receive_transfer_by_email(transfer_collection: Collection, email: str):
     }
 
     result = list(transfer_collection.find(combined_query, {"_id": 0}))
-    result.reverse()  # Reverses the order of the fetched items so they're shown most recent first in UI
+    result.reverse()  # Reverses the order of the fetched items, so they're shown most recent first in UI
 
     return result
-
-
-# Also is unused so can be deleted if safe
-def retrieve_all_transfers(transfer_collection: Collection) -> list:
-    all_documents = list(transfer_collection.find({}, {'_id': 0}))
-    return all_documents

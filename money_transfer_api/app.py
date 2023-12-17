@@ -1,4 +1,4 @@
-from flask import Flask, request, make_response, jsonify, render_template
+from flask import Flask, request, make_response, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
@@ -239,7 +239,7 @@ def transfers_by_email():
 @app.route("/api/v1.0/insights", methods=["POST"])
 @jwt_required
 def get_insights():
-    # Calls all the methods from insights.py and makes a dict of them, this is then returned as a response
+    # Calls all the methods from insights.py
     try:
         transfer_net = incoming_vs_outgoing(transfer_collection=transfers_collection, email=request.json["email"])
         most_users = highest_user_count(user_collection=users_collection)
@@ -247,6 +247,7 @@ def get_insights():
         most_transactions = highest_transaction_town(user_collection=users_collection,
                                                      transfer_collection=transfers_collection)
 
+        # Creates a dict using the insights data and returns it in the response
         insight_dict = {
             "net_total": transfer_net,
             "most_users": most_users,

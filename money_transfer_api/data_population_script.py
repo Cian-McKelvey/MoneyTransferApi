@@ -6,9 +6,6 @@ from datetime import datetime, timedelta
 
 from pymongo.collection import Collection
 
-from constants import CLIENT_CONNECTION, USERS_COLLECTION, DATABASE_CONNECTION, TRANSFERS_COLLECTION
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
 import bcrypt
 import pprint
 
